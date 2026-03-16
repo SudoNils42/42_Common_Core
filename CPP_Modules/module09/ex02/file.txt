@@ -1,0 +1,194 @@
+
+
+#include "../incl/PmergeMe.hpp"
+
+int jacobsthal(int n)
+{
+    if (n == 0)
+        return 0;
+    if (n == 1)
+        return 1;
+    return jacobsthal(n - 1) + 2 * jacobsthal(n - 2);
+}
+
+int main (int ac, char **av) {
+    if (ac < 2)
+    {
+        std::cerr << "Error: need at least one argument" << std::endl;
+        return 1;
+    }
+    
+    PmergeMe algo;
+    algo.init_cont(ac, av);
+    algo.display_before(ac, av);
+    
+    std::deque<int> deque = algo.get_deque();
+    clock_t start = clock();
+    ford_johnson(deque);
+    clock_t end = clock();
+    double deque_time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000000;
+
+    std::vector<int> vector = algo.get_vector();
+    start = clock();
+    ford_johnson(vector);
+    end = clock();
+    double vector_time = static_cast<double>(end - start) / CLOCKS_PER_SEC * 1000000;
+
+    algo.display_after(deque);
+    std::cout << "Time to process a range of " << ac - 1 << " elements with std::deque : " << deque_time << " us" << std::endl;
+    std::cout << "Time to process a range of " << ac - 1 << " elements with std::vector : " << vector_time << " us" << std::endl;
+    return 0;
+}
+
+#include "../incl/PmergeMe.hpp"
+
+PmergeMe::PmergeMe() {}
+
+PmergeMe::PmergeMe(const PmergeMe& src) : _deque(src._deque), _vector(src._vector) {}
+
+PmergeMe& PmergeMe::operator=(const PmergeMe& rhs) {
+    if (this != &rhs)
+    {
+        _deque = rhs._deque;
+        _vector = rhs._vector;
+
+    }
+    return *this;
+}
+
+PmergeMe::~PmergeMe() {}
+
+void PmergeMe::init_cont(int ac, char **av) {
+    int i = 1;
+    while (i < ac)
+    {
+     _deque.push_back(std::atoi(av[i]));
+     _vector.push_back(std::atoi(av[i]));
+     i++;
+    }
+}
+
+std::deque<int>& PmergeMe::get_deque() {
+    return _deque;
+}
+
+std::vector<int>& PmergeMe::get_vector() {
+    return _vector;
+}
+
+
+void PmergeMe::display_before(int ac, char **av) {
+    std::cout << "Before:";
+    int max = 6;
+    if (ac > 6)
+        max = 5;
+    int i = 1;
+    while (i != max && i < ac)
+    {
+        std::cout << " " << av[i];
+        i++;
+    }
+    if (max == 5)
+        std::cout << " [...]";
+    std::cout << std::endl;
+}
+
+void PmergeMe::display_after(std::deque<int> deque) {
+    std::cout << "After: ";
+    int max = 6;
+    
+    if (deque.size() > 5)
+        max = 5;
+    int i = 1;
+    while (i != max && i != static_cast<int>(deque.size()) + 1)
+    {
+        std::cout << " " << deque[i - 1];
+        i++;
+    }
+    if (max == 5)
+        std::cout << " [...]";
+    std::cout << std::endl;
+}
+
+#pragma once
+#include <deque>
+#include <vector>
+#include <string>
+#include <iostream>
+#include <cstdlib>
+#include <ctime>
+#include <algorithm>
+
+class PmergeMe {
+    private:
+        std::deque<int> _deque;
+        std::vector<int> _vector;
+        
+    public:
+        PmergeMe();
+        PmergeMe(const PmergeMe &src);
+        PmergeMe& operator=(const PmergeMe &rhs);
+        ~PmergeMe();
+
+        void init_cont(int ac, char **av);
+        void display_before(int ac, char **av);
+        void display_after(std::deque<int> deque);
+        std::deque<int>& get_deque();
+        std::vector<int>& get_vector();
+
+};
+
+int jacobsthal(int n);
+
+template <typename Container>
+void ford_johnson(Container &container) {
+    if (container.size() <= 1)
+        return;
+
+    Container main;
+    Container pend;
+    
+    int odd = -1;
+    if (container.size() % 2 == 1)
+    {
+        odd = container.back();
+        container.pop_back();
+    }
+    
+    typename Container::iterator it = container.begin();
+    while (it != container.end())
+    {
+        int a = *it;
+        it++;
+        int b = *it;
+        main.push_back(std::min(a, b));
+        pend.push_back(std::max(a, b));
+        it++;
+    }
+    ford_johnson(main);
+
+    int n = 1;
+    while (!pend.empty())
+    {
+        int j = jacobsthal(n);
+        if (j >= static_cast<int>(pend.size()))
+            break;
+        typename Container::iterator it = pend.begin();
+        for (int i = 0; i < j; i++)
+            it++;
+        int val = *it;
+        pend.erase(it);
+        main.insert((std::lower_bound(main.begin(), main.end(), val)), val);
+        n++;
+    }
+    if (odd != -1)
+        pend.push_back(odd);
+
+    while (!pend.empty())
+    {
+        int val = pend.back();
+        pend.pop_back();
+        main.insert((std::lower_bound(main.begin(), main.end(), val)), val);
+    }
+    container = main;
+}
